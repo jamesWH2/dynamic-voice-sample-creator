@@ -1,0 +1,37 @@
+{
+  "name": "Jimmy",
+  "sources": [
+    "https://www.youtube.com/watch?v=16NSPOMDGss",
+    "https://www.youtube.com/watch?v=PFWsyzIigMo",
+    "https://www.youtube.com/watch?v=bq22UBEBaf8"
+  ],
+  "reference_sequences": [
+    {"url": "https://www.youtube.com/watch?v=16NSPOMDGss", "start_time": 15.0, "end_time": 25.5},
+    {"url": "https://www.youtube.com/watch?v=PFWsyzIigMo", "start_time": 34.0, "end_time": 80.0},
+    {"url": "https://www.youtube.com/watch?v=bq22UBEBaf8", "start_time": 2.0, "end_time": 17.0}
+  ],
+  "similarity_threshold": 0.90,
+  "crossfade_ms": 50,
+  "output_file": "jimmy_voice_samples_v9.wav",
+  "audio_energy_filter": {
+    "enabled": true,
+    "min_rms_energy": 0.02
+  },
+  "min_segment_duration": 2.0,
+  "dnsmos_filter": {
+    "enabled": true,
+    "sig_min": 3.5,
+    "bak_min": 3.0,
+    "ovrl_min": 3.5
+  },
+  "noise_reduction": {
+    "enabled": true,
+    "method": "nlm",
+    "strength": 50
+  },
+  "loudnorm": {
+    "enabled": true,
+    "target_lufs": -16.0,
+    "true_peak": -1.5
+  }
+}

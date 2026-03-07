@@ -1,0 +1,18 @@
+# Dynamic Voice Sample Creator - Requirements
+
+# Audio processing
+yt-dlp>=2024.0.0
+pydub>=0.25.0
+audio-separator[cpu]>=0.17.0
+
+# ML / Speaker recognition
+torch>=2.0.0
+torchaudio>=2.0.0
+speechbrain>=1.0.0
+pyannote.audio>=3.1.0
+
+# Database (for credential retrieval)
+psycopg2-binary>=2.9.0
+
+# Utilities
+numpy>=1.24.0

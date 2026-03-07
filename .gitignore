@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Generated outputs
+*.wav
+*.mp3
+*.m4a
+*.quality_report.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Models (downloaded separately)
+pretrained_models/
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp

@@ -1,0 +1,227 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║        WORKFLOW V9: DNSMOS + EBU R128 + NLM NOISE REDUCTION ✅              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  INPUT                                                                       │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  Config:                                                                │   │
+│  │    • sources: [URL1, URL2, URL3]                                      │   │
+│  │    • reference_sequences: [{url, start, end}]                         │   │
+│  │    • similarity_threshold: 0.90                                        │   │
+│  │    • dnsmos_filter: {sig_min: 3.5, bak_min: 3.0, ovrl_min: 3.5}      │   │
+│  │    • loudnorm: {target: -16 LUFS, tp: -1.5 dBTP}                      │   │
+│  │    • noise_reduction: {highpass: 100, lowpass: 7500, strength: light}│   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 1: DOWNLOAD (yt-dlp)                                                  │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  • Download all source URLs                                          │   │
+│  │  • Output: WAV, 44100Hz                                              │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 2: VOCAL ISOLATION (Kim_Vocal_2)                                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  • MDX-Net vocal separation                                          │   │
+│  │  • Removes: instrumentals, background music                          │   │
+│  │  • Output: vocal-only WAVs                                           │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 3: EMBEDDING GENERATION (ECAPA-TDNN)                                  │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  • Generate embeddings from reference sequences                      │   │
+│  │  • 192-dim vectors, averaged → master_embedding                      │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 4: SPEAKER MATCHING (pyannote 3.1)                                    │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  • Diarize each vocal file                                           │   │
+│  │  • Cluster speakers                                                  │   │
+│  │  • Cosine similarity >= threshold → matched_segments                 │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+╔═════════════════════════════════════════════════════════════════════════════╗
+║  STEP 5: DNSMOS QUALITY FILTER 🆕                                           ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║  For each matched segment:                                                  ║
+║    ┌────────────────────────────────────────────────────────────────────┐   ║
+║    │  DNSMOS P.835 Analysis:                                            │   ║
+║    │    SIG (Signal Quality)    >= 3.5                                  │   ║
+║    │    BAK (Background Quality) >= 3.0                                 │   ║
+║    │    OVRL (Overall Quality)  >= 3.5                                  │   ║
+║    └────────────────────────────────────────────────────────────────────┘   ║
+║         │                        │                                          ║
+║      ALL PASS                ANY FAIL                                       ║
+║         │                        │                                          ║
+║         ▼                        ▼                                          ║
+║    ✓ quality_segments        ✗ rejected + logged                           ║
+║                                                                              ║
+║  Output: quality_report.json (scores, reasons, stats)                      ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+                                      │
+                                      ▼
+╔═════════════════════════════════════════════════════════════════════════════╗
+║  STEP 6: PER-SEGMENT LOUDNORM 🆕                                            ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║  For each quality_segment:                                                  ║
+║    ┌────────────────────────────────────────────────────────────────────┐   ║
+║    │  EBU R128 Loudness Normalization:                                  │   ║
+║    │    Target: -16 LUFS (broadcast standard)                          │   ║
+║    │    True Peak: -1.5 dBTP                                           │   ║
+║    │    LRA (Loudness Range): preserved                                │   ║
+║    └────────────────────────────────────────────────────────────────────┘   ║
+║                                                                              ║
+║  Purpose:                                                                   ║
+║    • Equalizes loudness across sources                                      ║
+║    • Better crossfade blending                                              ║
+║    • Consistent energy perception                                           ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 7: STITCHING                                                          │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  • Sort quality_segments by (source, time)                           │   │
+│  │  • Filter: duration >= min, energy >= min                            │   │
+│  │  • Concatenate with crossfade (50ms)                                 │   │
+│  │  • Smooth transitions                                                 │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+╔═════════════════════════════════════════════════════════════════════════════╗
+║  STEP 8: NLM NOISE REDUCTION 🆕                                            ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║  Apply Non-Local Means denoiser for non-stationary noise:                   ║
+║                                                                              ║
+║  ┌────────────────────────────────────────────────────────────────────┐     ║
+║  │  NLM Denoiser (anlmdn):                                            │     ║
+║  │    • strength=50 (strong)                                          │     ║
+║  │    • Pattern-matching algorithm                                    │     ║
+║  │    • Removes scratching, wind, crumpling sounds                    │     ║
+║  │    • Preserves voice better than FFT                               │     ║
+║  └────────────────────────────────────────────────────────────────────┘     ║
+║                                                                              ║
+║  ✅ WHY NLM WORKS:                                                          ║
+║     • Finds similar patterns in audio                                       ║
+║     • Averages them to reduce noise                                         ║
+║     • Handles overlapping voice+noise better than FFT                      ║
+║     • Tested: NLM s=50 beats FFT/EQ approaches                             ║
+║                                                                              ║
+║  ❌ DO NOT USE:                                                             ║
+║     • FFT denoiser (afftdn) - fails on non-stationary noise                ║
+║     • Spectral gating - destroys voice quality                              ║
+║     • EQ-only approaches - insufficient noise removal                      ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+                                      │
+                                      ▼
+╔═════════════════════════════════════════════════════════════════════════════╗
+║  STEP 9: FINAL LOUDNORM 🆕                                                  ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║  ┌────────────────────────────────────────────────────────────────────┐     ║
+║  │  EBU R128 Final Pass:                                              │     ║
+║  │    Target: -16 LUFS                                                │     ║
+║  │    True Peak: -1.5 dBTP                                            │     ║
+║  │    LRA: preserved (dynamic range)                                  │     ║
+║  └────────────────────────────────────────────────────────────────────┘     ║
+║                                                                              ║
+║  Ensures:                                                                   ║
+║    ✓ Broadcast-ready loudness                                              ║
+║    ✓ Consistent volume across all outputs                                  ║
+║    ✓ No clipping (true peak limit)                                         ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  OUTPUT                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  output.wav                                                            │   │
+│  │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   │   │
+│  │  • 24000Hz, 16-bit, mono                                              │   │
+│  │  • Target speaker only                                                │   │
+│  │  • DNSMOS quality-validated ✓                                        │   │
+│  │  • Loudness normalized (-16 LUFS) ✓                                   │   │
+│  │  • Residual noise removed ✓                                          │   │
+│  │  • PRODUCTION READY ✓                                                 │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  quality_report.json                                                  │   │
+│  │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   │   │
+│  │  • Total segments checked: N                                          │   │
+│  │  • Accepted: M                                                        │   │
+│  │  • Rejected: K                                                        │   │
+│  │  • Average scores: {sig, bak, ovrl}                                   │   │
+│  │  • Rejection breakdown: {low_sig, low_bak, low_ovrl}                 │   │
+│  │  • Rejected segments details: [...]                                   │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    PROCESSING CHAIN RATIONALE                                ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║                                                                              ║
+║  QUESTION: Why per-segment loudnorm BEFORE stitching?                       ║
+║                                                                              ║
+║  ANSWER:                                                                    ║
+║    1. Each source has different recording levels                            ║
+║    2. Normalizing per-segment ensures equal energy before crossfade         ║
+║    3. Prevents "jumping" loudness between segments                          ║
+║    4. Crossfades blend more smoothly with matched levels                    ║
+║                                                                              ║
+║  QUESTION: Why noise reduction AFTER stitching?                             ║
+║                                                                              ║
+║  ANSWER:                                                                    ║
+║    1. Stitched audio has consistent noise floor (from same processing)     ║
+║    2. Single noise reduction pass more efficient than per-segment          ║
+║    3. Avoids processing artifacts at segment boundaries                     ║
+║    4. GENTLE settings preserve voice quality                                ║
+║                                                                              ║
+║  QUESTION: Why final loudnorm pass?                                         ║
+║                                                                              ║
+║  ANSWER:                                                                    ║
+║    1. Noise reduction may change loudness slightly                         ║
+║    2. Ensures exact -16 LUFS target                                         ║
+║    3. Guarantees broadcast-ready output                                     ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                   COMPARISON: v6 vs v8                                       ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║                                                                              ║
+║  v6 (CURRENT):                                                              ║
+║    1-4. Download → Isolate → Embed → Match                                  ║
+║    5. DNSMOS filter                                                         ║
+║    6. Stitch → Output (-33 LUFS, no noise reduction)                        ║
+║                                                                              ║
+║  v8 (PROPOSED):                                                             ║
+║    1-4. Download → Isolate → Embed → Match                                  ║
+║    5. DNSMOS filter                                                         ║
+║    6. Per-segment loudnorm (-16 LUFS) 🆕                                    ║
+║    7. Stitch                                                                ║
+║    8. Gentle noise reduction 🆕                                             ║
+║    9. Final loudnorm (-16 LUFS) 🆕                                          ║
+║    → Output (PRODUCTION READY)                                              ║
+║                                                                              ║
+║  KEY DIFFERENCES:                                                           ║
+║    ✓ Two-pass loudnorm (per-segment + final)                                ║
+║    ✓ Gentle noise reduction (highpass + lowpass + light FFT)                ║
+║    ✓ Processing chain optimized for quality preservation                    ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝

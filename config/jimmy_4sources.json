@@ -1,0 +1,55 @@
+{
+  "name": "Jimmy",
+  "sources": [
+    "https://www.youtube.com/watch?v=16NSPOMDGss",
+    "https://www.youtube.com/shorts/qtnh7Ckd1ns",
+    "https://www.youtube.com/watch?v=bq22UBEBaf8",
+    "https://www.youtube.com/watch?v=i75NUCk0rrY"
+  ],
+  "reference_sequences": [
+    {
+      "url": "https://www.youtube.com/watch?v=16NSPOMDGss",
+      "start_time": 15.0,
+      "end_time": 25.5
+    },
+    {
+      "url": "https://www.youtube.com/shorts/qtnh7Ckd1ns",
+      "start_time": 0.0,
+      "end_time": 4.0
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=bq22UBEBaf8",
+      "start_time": 2.0,
+      "end_time": 17.0
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=i75NUCk0rrY",
+      "start_time": 13.0,
+      "end_time": 27.0
+    }
+  ],
+  "similarity_threshold": 0.9,
+  "crossfade_ms": 50,
+  "output_file": "jimmy_4sources.wav",
+  "audio_energy_filter": {
+    "enabled": true,
+    "min_rms_energy": 0.02
+  },
+  "min_segment_duration": 2.0,
+  "dnsmos_filter": {
+    "enabled": true,
+    "sig_min": 3.5,
+    "bak_min": 3.0,
+    "ovrl_min": 3.5
+  },
+  "noise_reduction": {
+    "enabled": true,
+    "method": "nlm",
+    "strength": 50
+  },
+  "loudnorm": {
+    "enabled": true,
+    "target_lufs": -16.0,
+    "true_peak": -1.5
+  }
+}
