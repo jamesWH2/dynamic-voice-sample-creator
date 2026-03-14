@@ -206,41 +206,17 @@ class DynamicVoiceSampleCreator:
                 similarity = embedder.cosine_similarity(master_embedding, seg_embedding)
                 
                 if similarity >= self.config.similarity_threshold:
-                    # Cluster matches — verify EACH segment individually (V10 fix)
-                    # Prevents other voices leaking in from mis-labelled cluster segments
-                    # Use per_segment_threshold if set, else fall back to similarity_threshold
-                    seg_threshold = (self.config.per_segment_threshold
-                                     if self.config.per_segment_threshold > 0
-                                     else self.config.similarity_threshold)
-                    print(f"    {speaker_id}: ✓ CLUSTER MATCH (sim={similarity:.3f}) — verifying {len(segments)} individually (seg_threshold={seg_threshold})...")
-                    accepted_count = 0
-                    rejected_count = 0
+                    # MATCH! Accept all segments from this cluster
+                    print(f"    {speaker_id}: ✓ MATCH (sim={similarity:.3f}) - Accepting {len(segments)} segments")
+                    
+                    # Convert SpeakerSegments to MatchedSegments for stitcher
                     for seg in segments:
-                        seg_dur = seg.end - seg.start
-                        # Very short segments (< 1.5s) — trust cluster label, not enough audio for accurate embedding
-                        if seg_dur < 1.5:
-                            matched_segments.append(MatchedSegment(
-                                source_path=vocal_path,
-                                start=seg.start,
-                                end=seg.end,
-                                similarity=similarity
-                            ))
-                            accepted_count += 1
-                            continue
-                        # Per-segment verification against master embedding
-                        seg_emb = embedder.generate_embedding(vocal_path, seg.start, seg.end)
-                        seg_sim = embedder.cosine_similarity(master_embedding, seg_emb)
-                        if seg_sim >= seg_threshold:
-                            matched_segments.append(MatchedSegment(
-                                source_path=vocal_path,
-                                start=seg.start,
-                                end=seg.end,
-                                similarity=seg_sim
-                            ))
-                            accepted_count += 1
-                        else:
-                            rejected_count += 1
-                    print(f"      → Accepted {accepted_count}, rejected {rejected_count} (per-segment check)")
+                        matched_segments.append(MatchedSegment(
+                            source_path=vocal_path,
+                            start=seg.start,
+                            end=seg.end,
+                            similarity=similarity
+                        ))
                 else:
                     print(f"    {speaker_id}: ✗ No match (sim={similarity:.3f})")
         
@@ -364,49 +340,6 @@ class DynamicVoiceSampleCreator:
         
         print(f"[STEP 7] EQ applied (100Hz-10000Hz)\n")
         return input_path
-
-    def step7b_cross_source_equalize(self, input_path: str) -> str:
-        """
-        [Optional Enhancement] Cross-source equalization.
-        Applies dynamic normalization + gentle compression to smooth out
-        differences between segments recorded in different environments.
-        Uses FFmpeg dynaudnorm (dynamic audio normalization) which equalizes
-        loudness on a frame-by-frame basis, making cross-source stitches
-        sound more cohesive without altering the voice character.
-        """
-        import subprocess, shutil
-        temp_path = input_path.replace('.wav', '_equalized.wav')
-
-        # dynaudnorm settings:
-        #   g=15   — 15-frame Gaussian window (short, responsive)
-        #   f=500  — 500ms RMS frame size (balances dynamics)
-        #   r=0.95 — max gain factor (prevent over-amplification)
-        #   b=true — couple channels (mono here, safe)
-        # acompressor adds light compression to reduce level spikes at stitch points
-        af_chain = (
-            "dynaudnorm=g=15:f=500:r=0.95,"
-            "acompressor=threshold=-24dB:ratio=2:attack=20:release=250:makeup=1"
-        )
-
-        cmd = [
-            'ffmpeg', '-y',
-            '-i', input_path,
-            '-af', af_chain,
-            '-ar', str(self.config.output_sample_rate),
-            '-ac', '1',
-            temp_path
-        ]
-
-        print("[STEP 7b] Cross-source equalization (dynaudnorm + compression)...")
-        result = subprocess.run(cmd, capture_output=True, text=True)
-
-        if result.returncode != 0:
-            print(f"[STEP 7b] Warning: Equalization failed — skipping. {result.stderr[-200:]}")
-            return input_path
-
-        shutil.move(temp_path, input_path)
-        print("[STEP 7b] Cross-source equalization applied\n")
-        return input_path
     
     def step8_apply_nlm(self, input_path: str) -> str:
         """Apply NLM noise reduction to stitched audio."""
@@ -497,7 +430,6 @@ class DynamicVoiceSampleCreator:
             self.step5_dnsmos_filter()
             output_path = self.step6_stitch()
             output_path = self.step7_apply_eq(output_path)
-            output_path = self.step7b_cross_source_equalize(output_path)  # Optional: cross-source EQ
             output_path = self.step8_apply_nlm(output_path)
             output_path = self.step9_final_loudnorm(output_path)
             

@@ -1,0 +1,41 @@
+{
+  "name": "Jurgen",
+  "sources": [
+    "https://www.youtube.com/shorts/DXJsc-L73nc",
+    "https://www.youtube.com/shorts/ZzmiavIxvH0",
+    "https://www.youtube.com/shorts/EQPzSr_ZGpA",
+    "https://www.youtube.com/watch?v=dQ90iOY6RRo",
+    "https://www.youtube.com/watch?v=sKgHw4Fv7xs",
+    "https://www.youtube.com/watch?v=m_XIkw6ZgNo"
+  ],
+  "reference_sequences": [
+    {"url": "https://www.youtube.com/shorts/DXJsc-L73nc", "start_time": 0.0, "end_time": 8.0},
+    {"url": "https://www.youtube.com/shorts/ZzmiavIxvH0", "start_time": 0.1, "end_time": 6.0},
+    {"url": "https://www.youtube.com/shorts/EQPzSr_ZGpA", "start_time": 0.0, "end_time": 10.0},
+    {"url": "https://www.youtube.com/watch?v=dQ90iOY6RRo", "start_time": 7.0, "end_time": 24.0},
+    {"url": "https://www.youtube.com/watch?v=sKgHw4Fv7xs", "start_time": 0.0, "end_time": 25.0},
+    {"url": "https://www.youtube.com/watch?v=m_XIkw6ZgNo", "start_time": 112.0, "end_time": 122.0}
+  ],
+  "similarity_threshold": 0.88,
+  "per_segment_threshold": 0.91,
+  "crossfade_ms": 50,
+  "output_file": "/home/dataling/.openclaw/workspace/projects/voice-system/assets/voices/raw/jurgen_raw.wav",
+  "audio_energy_filter": {
+    "enabled": true,
+    "min_rms_energy": 0.02
+  },
+  "min_segment_duration": 1.0,
+  "dnsmos_filter": {
+    "enabled": false
+  },
+  "noise_reduction": {
+    "enabled": true,
+    "method": "nlm",
+    "strength": 50
+  },
+  "loudnorm": {
+    "enabled": true,
+    "target_lufs": -16.0,
+    "true_peak": -1.5
+  }
+}

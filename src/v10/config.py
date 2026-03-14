@@ -62,7 +62,6 @@ class PipelineConfig:
     reference_sequences: List[ReferenceSequence]
     output_file: str = "output.wav"
     similarity_threshold: float = 0.75
-    per_segment_threshold: float = 0.0  # 0 = use similarity_threshold for both
     crossfade_ms: int = 50
     output_sample_rate: int = 24000
     hf_token: Optional[str] = None
@@ -129,7 +128,6 @@ class PipelineConfig:
             reference_sequences=refs,
             output_file=data.get("output_file", "output.wav"),
             similarity_threshold=data.get("similarity_threshold", 0.75),
-            per_segment_threshold=data.get("per_segment_threshold", 0.0),
             crossfade_ms=data.get("crossfade_ms", 50),
             output_sample_rate=data.get("output_sample_rate", 24000),
             hf_token=data.get("hf_token"),

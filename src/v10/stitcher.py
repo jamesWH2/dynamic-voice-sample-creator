@@ -24,17 +24,13 @@ class AudioStitcher:
     
     def __init__(self, crossfade_ms: int = 50, output_sample_rate: int = 24000, 
                  min_rms_energy: float = 0.0, min_segment_duration: float = 0.0,
-                 per_segment_loudnorm: bool = False, target_lufs: float = -16.0,
-                 pause_between_sources_ms: int = 350, pause_same_source_ms: int = 120):
+                 per_segment_loudnorm: bool = False, target_lufs: float = -16.0):
         self.crossfade_ms = crossfade_ms
         self.output_sample_rate = output_sample_rate
         self.min_rms_energy = min_rms_energy
         self.min_segment_duration = min_segment_duration
         self.per_segment_loudnorm = per_segment_loudnorm
         self.target_lufs = target_lufs
-        # Natural pauses between stitched segments (V10)
-        self.pause_between_sources_ms = pause_between_sources_ms   # ms gap when source file changes
-        self.pause_same_source_ms = pause_same_source_ms           # ms gap within same source file
     
     def calculate_rms_energy(self, audio_segment: AudioSegment) -> float:
         """Calculate RMS energy of an audio segment (normalized 0.0-1.0)."""
@@ -179,43 +175,14 @@ class AudioStitcher:
         if rejected_energy > 0:
             print(f"[STITCHER] Rejected {rejected_energy} low-energy segments")
         
-        # Build silence clips for natural pauses
-        silence_between = AudioSegment.silent(
-            duration=self.pause_between_sources_ms,
-            frame_rate=self.output_sample_rate
-        )
-        silence_same = AudioSegment.silent(
-            duration=self.pause_same_source_ms,
-            frame_rate=self.output_sample_rate
-        )
-
-        # Pair segments with their sources for pause logic
-        valid_segs_with_source = []
-        seg_iter = iter(segments)
-        for audio_seg in audio_segments:
-            # Advance seg_iter to find the matching segment
-            for s in seg_iter:
-                source = getattr(s, 'source_path', getattr(s, 'source', None))
-                dur = s.end - s.start
-                if source and (self.min_segment_duration <= 0 or dur >= self.min_segment_duration):
-                    valid_segs_with_source.append((audio_seg, source))
-                    break
-
-        # Concatenate with natural pauses (no crossfade — preserves naturalness)
-        output = valid_segs_with_source[0][0] if valid_segs_with_source else audio_segments[0]
-        prev_source = valid_segs_with_source[0][1] if valid_segs_with_source else None
-
-        pairs = valid_segs_with_source[1:] if valid_segs_with_source else list(enumerate(audio_segments[1:], 1))
-
-        for i, (audio_seg, source) in enumerate(pairs, 1):
+        # Concatenate with crossfade
+        output = audio_segments[0]
+        
+        for i, audio_seg in enumerate(audio_segments[1:], 1):
             duration = len(audio_seg) / 1000.0
+            similarity = getattr(seg, 'similarity', 1.0)  # Default to 1.0 if not available
             print(f"[STITCHER] Adding segment {i}/{len(audio_segments)-1} (dur={duration:.1f}s)")
-            # Choose pause length based on whether we are switching source files
-            if source != prev_source:
-                output = output + silence_between + audio_seg
-            else:
-                output = output + silence_same + audio_seg
-            prev_source = source
+            output = output.append(audio_seg, crossfade=self.crossfade_ms)
         
         # Convert to target format
         output = output.set_frame_rate(self.output_sample_rate)
